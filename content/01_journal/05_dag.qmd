@@ -2,6 +2,85 @@
 title: "Directed Acyclic Graphs"
 ---
 
-::: callout-note
-You can delete everything in here and start fresh.
-:::
+# Assignment 7
+
+## Parking spots example
+
+In the parking spots example we had the parking spots as treatment variables, the stores as observation units and the sales as an outcome also taking into consideration the location as a confounder.
+
+```{r}
+# Load packages
+library(dagitty)
+library(ggdag)
+library(ggplot2)
+
+#Create DAG model
+parking_model <- dagify(
+  S ~ L,
+  A ~ P,
+  B ~ P,
+  C ~ P,
+  D ~ P,
+  S ~ A,
+  S ~ B,
+  S ~ C,
+  S ~ D,
+  coords = list(x = c(L = 7,P = 1,A = 3,B = 3,C = 3,D = 3,S = 7),
+                y = c(L = 1,P = 0,A = 1,B = 0.5,C = -0.5,D = -1,S = 0)),
+  labels = list(L="location",
+                P = "parking spots",
+                A = "Store A",
+                B = "Store B",
+                C = "Store C",
+                D = "Store D",
+                S = "Sales")
+)
+
+#Plot DAG model
+ggdag(parking_model) +
+  theme_dag()+
+  geom_dag_node(color = "red")+
+  geom_dag_text(color = "white") +
+  geom_dag_edges(edge_color = "black") +
+  geom_dag_label_repel(aes(label = label))
+
+```
+
+
+## Customer Satisfaction
+
+### Linear reaggression
+
+```{r}
+library(tidyverse)
+
+customer_sat <- readRDS("~/Documents/TUHH/Casual Data Science for Business Analytics/Causal_Data_Science_Data/customer_sat.rds")
+head(customer_sat)
+
+lm_first <- lm(satisfaction ~ follow_ups, data = customer_sat)
+summary(lm_first)
+
+lm_second <- lm(satisfaction ~ follow_ups + subscription, data = customer_sat)
+summary(lm_second)
+```
+
+### Comparing and Explanation
+One of the possible reasons for having a negative estimate in the first regression and then a positive one in the second could be due to the nature of the follow-up calls. So when we speak about follow-ups in general its usually a problem and at lower subscription levels the solution could be to upgrade their subscription which is more expensive and hence the customer isn't satisfied with the outcome, it could also be a bug or a complain which applies to all subscription levels but when you factor in the subscription level the nature of the calls could be about an upgrade or an inquiry about a feature that gets resolved and the customer is satisfied. 
+
+Another explanation that appears later when plotting the data is that when we don't factor the subscription levels it shows that overall the more the follow-ups the less the satisfaction but when you factor the subscription you find that every subscription level has its own range of satisfaction which when isolated shows us an increase in satisfaction as the increase of follow-ups.
+
+### Plotting the data 
+
+```{r}
+no_sub_sat <- ggplot(customer_sat, aes(x = follow_ups, y = satisfaction)) +
+  geom_point(alpha = .8) +
+  stat_smooth(method = "lm", se = F)
+
+sub_sat <- ggplot(customer_sat, aes(x = follow_ups, y = satisfaction, color = subscription)) +
+  geom_point(alpha = .8) +
+  stat_smooth(method = "lm", se = F)
+
+no_sub_sat
+sub_sat
+```
+

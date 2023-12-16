@@ -2,6 +2,59 @@
 title: "Randomized Controlled Trials"
 ---
 
-::: callout-note
-You can delete everything in here and start fresh.
-:::
+# Assignment 8
+
+## 1. Checking whether covariates are balanced throughout the groups.
+
+```{r}
+library(tidyverse)
+
+abtest <- readRDS("~/Documents/TUHH/Casual Data Science for Business Analytics/Causal_Data_Science_Data/abtest_online.rds")
+
+compare <- 
+  ggplot(abtest, 
+         aes(x = chatbot, 
+             y = purchase_amount, 
+             color = as.factor(chatbot))) +
+  stat_summary(geom = "errorbar", 
+               width = .5,
+               fun.data = "mean_se", 
+               fun.args = list(mult=1.96),
+               show.legend = F) +
+  labs(x = NULL, y = "Purchase Amount", title = "Difference in Purchase Amount")
+
+compare
+```
+
+As we can see in the plot the covariates are not balanced.
+
+## 2. Chatbot effect on sales
+
+```{r}
+lm_sales <- lm(purchase_amount ~ chatbot, data = abtest)
+summary(lm_sales)
+```
+
+The coefficient is a negative number telling us that the chatbots are affecting the sales in a negative way decreasing the sales and not increasing them.
+
+
+## 3. CATE taking into consideration mobile users
+
+```{r}
+lm_sales_plus_mob <- lm(purchase_amount ~ chatbot*mobile_device, data = abtest)
+summary(lm_sales_plus_mob)
+```
+
+## 4. Logistic regression for **purchase**
+
+```{r}
+glm_sales <- glm(purchase ~ chatbot, family = binomial(link = 'logit'), abtest)
+summary(glm_sales)
+```
+
+In logistic regression we don't just look at the coefficient but its exponent and that tells us the "odds ratio" which is the ratio of the probability of an event happening divided by the probability of the non event. 
+
+Since the coefficient here is a negative number hence the odds ratio is less than one and that tells us that the event will most likely not happen.
+
+In our case the event is the purchase and so the regression tells us that having the chatbot means that the probability of the customer making a purchase is less than that when the customer doesn't have a chat bot. This means that the chat bot is negatively affecting the number of purchases and hence decreasing the sales.
+
