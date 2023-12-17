@@ -2,6 +2,102 @@
 title: "Matching and Subclassification"
 ---
 
-::: callout-note
-You can delete everything in here and start fresh.
-:::
+# Assignment 9
+
+## 1. DAG Model
+
+```{r}
+library(tidyverse)
+library(patchwork)
+library(dagitty)
+library(ggdag)
+library(ggplot2)
+library(MatchIt)
+
+store <- readRDS("~/Documents/TUHH/Casual Data Science for Business Analytics/Causal_Data_Science_Data/membership.rds")
+
+store
+
+
+store_model <- dagify(
+  M ~ A,
+  M ~ S,
+  M ~ P,
+  R ~ A,
+  R ~ S,
+  R ~ P,
+  coords = list(x = c(A = 1,S = 4,P = 7,M = 1,R = 7),
+                y = c(A = 2,S = 2,P = 2,M = 0,R = 0)),
+  labels = list(A = "Age",
+                P = "Previousverage Purchase",
+                S = "Sex",
+                M = "Membership",
+                R = "Revenue")
+)
+
+#Plot DAG model
+ggdag(store_model) +
+  theme_dag()+
+  geom_dag_node(color = "red")+
+  geom_dag_text(color = "white") +
+  geom_dag_edges(edge_color = "black") +
+  geom_dag_label_repel(aes(label = label))
+
+```
+
+## 2. Naive estimate of the average treatment effect
+
+```{r}
+naive_lm <- lm(avg_purch ~ card, data = store)
+summary(naive_lm)
+```
+
+## 3. (Coarsened) Exact Matching
+
+```{r}
+cem <- matchit(card  ~ avg_purch + age + sex + pre_avg_purch,
+               data = store, 
+               method = 'cem', 
+               estimand = 'ATE')
+
+df_cem <- match.data(cem)
+
+cem_lm <- lm(avg_purch ~ card, data = df_cem, weights = weights)
+summary(cem_lm)
+```
+
+## 4. Nearest-Neighbor Matching
+
+```{r}
+nn <- matchit(card  ~ avg_purch + age + sex + pre_avg_purch,
+              data = store,
+              method = "nearest", # changed
+              distance = "mahalanobis", # changed
+              replace = T)
+
+df_nn <- match.data(nn)
+
+nn_lm <- lm(avg_purch ~ card, data = df_nn, weights = weights)
+summary(nn_lm)
+```
+
+## 5. Inverse Probability Weighting
+
+```{r}
+model_prop <- glm(card  ~ avg_purch + age + sex + pre_avg_purch,
+                  data = store,
+                  family = binomial(link = "logit"))
+
+# Add propensities to table
+df_aug <- store %>% mutate(propensity = predict(model_prop, type = "response"))
+
+# Extend data by IPW scores
+df_ipw <- df_aug %>% mutate(
+  ipw = (card/propensity) + ((1-card) / (1-propensity)))
+
+#Estimation
+ipw_lm <- lm(avg_purch ~ card,
+                data = df_ipw, 
+                weights = ipw)
+summary(ipw_lm)
+```
