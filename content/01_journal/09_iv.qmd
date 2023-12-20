@@ -2,6 +2,78 @@
 title: "Instrumental Variables"
 ---
 
-::: callout-note
-You can delete everything in here and start fresh.
-:::
+# Assignment 11
+
+## Load Data and Libraries
+
+```{r}
+library(tidyverse)
+library(dagitty)
+library(ggdag)
+library(estimatr)
+
+app <- readRDS("~/Documents/TUHH/Casual Data Science for Business Analytics/Causal_Data_Science_Data/rand_enc.rds")
+
+app
+
+```
+
+## DAG Model
+
+```{r}
+app_model <- dagify(
+  F ~ P,
+  F ~ U,
+  S ~ F,
+  S ~ U,
+  coords = list(x = c(P = 1,F = 3,U = 5.5,S = 8),
+                y = c(P = 0,F = 0,U = 1.5,S = 0)),
+  labels = list(P = "PopUp / Encouragement",
+                F = "New Feature",
+                U = "Unobserved Confounder",
+                S = "Screen Time")
+)
+
+#Plot DAG model
+ggdag(app_model) +
+  theme_dag()+
+  geom_dag_node(color = "red")+
+  geom_dag_text(color = "white") +
+  geom_dag_edges(edge_color = "black") +
+  geom_dag_label_repel(aes(label = label))
+```
+
+
+## Naive Biased Estimate
+
+```{r}
+#Naive Biased Estimate
+
+lm_biased <- lm(time_spent ~ used_ftr, data = app)
+summary(lm_biased)
+```
+
+## Testing Assumptions
+
+```{r}
+app_assume <- app %>%
+  filter(used_ftr == 1)
+
+cor(app_assume$rand_enc,app_assume$time_spent)
+```
+
+### Argument 
+
+The value of the correlation between the IV variable and the outcome given the treatment is very small at -0.0274 which is not exactly zero but very small hence it is appropriate to use it specially that we most probably have a lot of unobserved confounders that can't be all compensated/accounted for with a single IV variable.
+
+## Computing IV estimate
+
+```{r}
+model_iv <- iv_robust(time_spent ~ used_ftr | rand_enc, data = app)
+summary(model_iv)
+
+```
+
+### Naive vs IV
+
+The naive estimate appears to be biased yes with a bit of upward bias as the naive estimate is higher than the IV estimate. 
