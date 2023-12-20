@@ -2,6 +2,93 @@
 title: "Regression Discontinuity"
 ---
 
-::: callout-note
-You can delete everything in here and start fresh.
-:::
+# Assignment 12
+
+# 1st Campaign 
+
+## Load Data
+
+```{r}
+library(tidyverse)
+library(rddensity)
+
+df <- readRDS("~/Documents/TUHH/Casual Data Science for Business Analytics/Causal_Data_Science_Data/coupon.rds")
+df
+
+# Define cut-off
+c0 <- 60
+
+# Define all 3 bandwidths
+bw <- c0 + c(-5, 5)
+bw_1 <- c0 + c(-2.5,2,5) # Half
+bw_2 <- c0 + c(-10,10)   # Double
+```
+
+## Normal Bandwidth 
+
+```{r}
+# Subsets below and above threshold in specified bandwidth
+df_bw_below <- df %>% filter(days_since_last >= bw[1] & days_since_last < c0)
+df_bw_above <- df %>% filter(days_since_last >= c0 & days_since_last <= bw[2])
+
+df_bw <- bind_rows(df_bw_above, df_bw_below)
+
+lm_bw <- lm(purchase_after ~ days_since_last_centered + coupon, df_bw)
+summary(lm_bw)
+```
+
+## Half of the normal Bandwidth
+
+```{r}
+# Case of Half the bandwidth
+df_bw_below_1 <- df %>% filter(days_since_last >= bw_1[1] & days_since_last < c0)
+df_bw_above_1 <- df %>% filter(days_since_last >= c0 & days_since_last <= bw_1[2])
+
+df_bw_1 <- bind_rows(df_bw_above_1, df_bw_below_1)
+
+lm_bw_1 <- lm(purchase_after ~ days_since_last_centered + coupon, df_bw_1)
+summary(lm_bw_1)
+```
+
+## Double the normal Bandwidth
+
+```{r}
+# Case of Double the bandwidth
+df_bw_below_2 <- df %>% filter(days_since_last >= bw_2[1] & days_since_last < c0)
+df_bw_above_2 <- df %>% filter(days_since_last >= c0 & days_since_last <= bw_2[2])
+
+df_bw_2 <- bind_rows(df_bw_above_2, df_bw_below_2)
+
+lm_bw_2 <- lm(purchase_after ~ days_since_last_centered + coupon, df_bw_2)
+summary(lm_bw_2)
+```
+
+## Conclusion 
+
+The bandwidth indeed affect the estimate, well at first it didn't appear like it when we used half the bandwidth only but in the second case of double the original bandwidth we saw a significant change and this tells us that depending on our bandwidth and number of cases within that bandwidth we may get varying results so its important to choose the right bandwidth according to theoretical knowledge of the project which would help us yield better results. I believe it is one of the parameters that would vary differently from cases to case and must be tuned carefully.
+
+# 2nd Campaign 
+
+## Load Data
+
+```{r}
+library(rddensity)
+shipping <- readRDS("~/Documents/TUHH/Casual Data Science for Business Analytics/Causal_Data_Science_Data/shipping.rds")
+
+shipping
+```
+
+## purchase_amount
+
+```{r}
+cs = 30
+
+rddd <- rddensity(shipping$purchase_amount, c = cs)
+summary(rddd)
+
+rdd_plot <- rdplotdensity(rddd, shipping$purchase_amount, plotN = 100)
+```
+
+## Conclusion
+
+We cannot use purchase_amount as a running variable with a cut-off at 30€ as first of all the p-value is less than any common $\alpha$ value plus the plot shows no overlapping of the confidence intervals and shows us discontinuity in the running variable resulting that we can't use RDD obtain valid results
